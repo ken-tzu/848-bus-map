@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>848 map</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        html,
+        body,
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+
+    <script>
+
+        var markersArray = new Array();
+        var locationArray = new Array();
+        var openedInfo;
+
+        // Initialize and add the map
+        function initMap() {
+            const kulloo = { lat: 60.3377996461302, lng: 25.4599816182501 };
+            const map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 10,
+                center: kulloo,
+            });
+
+            getData(map);
+            setInterval(function () {
+                getData(map);
+            }, 10000);
+        }
+
+        function getData(map) {
+
+            // for (var i = 0; i < markersArray.length; i++) {
+            //     markersArray[i].setMap(null);
+            // }
+            // markersArray.length = 0;
+
+            $.getJSON("https://www.koivistonauto.fi/wp-json/ka/v1/busses", function (data) {
+
+                $.each(data, function (key, val) {
+
+                    var line = val.transportation == null ? null : val.transportation.line;
+                    if (line == '6102' || line == '6101' || false) {
+
+                        var busTitle;
+                        switch (val.transportation?.line) {
+                            case '6101':
+                                busTitle = '848 Porvoo - Hki';
+                                break;
+                            case '6102':
+                                busTitle = '848 Hki - Porvoo';
+                                break;
+                            default:
+                                busTitle = val.name;
+                                break;
+                        }
+
+                        var existingMarker = markersArray.find(obj => {
+                            return obj.id === val.id
+                        });
+
+                        var distance, speed;
+                        if (val.location != null) {
+                            if (existingMarker != null) {
+                                distance = google.maps.geometry.spherical.computeDistanceBetween(
+                                    existingMarker.getPosition(),
+                                    new google.maps.LatLng(val.location.lat, val.location.lng));
+                            }
+                            if (distance > 0) {
+                                speed = distance / (val.location.timestamp - existingMarker.timeStamp) * 3.6;
+                                existingMarker.speed = speed;
+                            } else {
+                                speed = existingMarker?.speed;
+                            }
+                        } else {
+                            speed = existingMarker.speed;
+                        }
+
+                        var transportationInfo = val.transportation == null ? 'transportation: null <br>' :
+                            'transportation.shift: ' + val.transportation.shift + '<br>' +
+                            'transportation.line: ' + val.transportation.line + '<br>' +
+                            'transportation.departure_time: ' + val.transportation.departure_time + '<br>';
+
+                        var infoContent =
+                            '<b>' + busTitle + '</b><br>' +
+                            'Lähtöaika: ' + convertTimestamp(val.transportation?.departure_time) + '<br>' +
+                            // 'Dist: ' + distance + '<br>' +
+                            'Speed: ' + Math.round(speed) + ' km/h<br>' +
+                            '<br>' +
+                            'id: ' + val.id + '<br>' +
+                            'timestamp: ' + val.location.timestamp + '<br>' +
+                            'name: ' + val.name + '<br>' +
+                            'mapcode: ' + val.mapCode + '<br>' +
+                            transportationInfo +
+                            'reststate.stopped: ' + val.restState.stopped + '<br>' +
+                            'reststate.time: ' + val.restState.time + '<br>' +
+                            'reststate.duration: ' + val.restState.duration;
+
+                        var info = new google.maps.InfoWindow({
+                            content: infoContent,
+                        });
+
+                        // console.log(val);
+
+                        if (existingMarker != null) { // update existing marker
+                            existingMarker.setTitle(busTitle);
+                            existingMarker.setPosition({ lat: val.location.lat, lng: val.location.lng });
+                            existingMarker.timeStamp = val.location.timestamp;
+                            existingMarker.setOpacity(val.restState.stopped ? 0.35 : 1.0);
+                            existingMarker.setIcon(({
+                                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                                scale: 5,
+                                rotation: val.location.heading
+                            }));
+                            existingMarker.info.setContent(infoContent);
+
+                        }
+                        else { // new marker
+
+                            var marker = new google.maps.Marker({
+                                position: { lat: val.location.lat, lng: val.location.lng },
+                                title: busTitle,
+                                opacity: val.restState.stopped ? 0.35 : 1.0,
+                                map: map,
+                                id: val.id,
+                                info: info,
+                                speed: speed,
+                                timeStamp: val.location.timestamp
+                            });
+
+                            marker.setIcon(({
+                                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                                scale: 5,
+                                rotation: val.location.heading
+                            }));
+
+                            marker.addListener("click", () => {
+                                if(openedInfo != null) openedInfo.close();
+                                info.open({
+                                    anchor: marker,
+                                    map,
+                                    shouldFocus: false,
+                                });
+                                openedInfo = info;
+                            });
+
+                            markersArray.push(marker);
+                        }
+                    }
+                });
+            });
+        }
+
+        function convertTimestamp(timeStamp) {
+            if (timeStamp == null) return 'null';
+            var date = new Date(timeStamp * 1000);
+            var hours = date.getHours();
+            var minutes = String(date.getMinutes()).padStart(2, '0');
+            return hours + ':' + minutes;
+        }
+
+        window.initMap = initMap;
+
+    </script>
+</head>
+
+<body>
+    <!--The div element for the map -->
+    <div id="map"></div>
+
+    <!-- 
+     The `defer` attribute causes the callback to execute after the full HTML
+     document has been parsed. For non-blocking uses, avoiding race conditions,
+     and consistent behavior across browsers, consider loading using Promises
+     with https://www.npmjs.com/package/@googlemaps/js-api-loader.
+    -->
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAkB0SHfpfb_FIKi_dOOG8YitsGdqq2e5w&libraries=geometry&callback=initMap&v=weekly"
+        defer></script>
+</body>
+
+</html>
