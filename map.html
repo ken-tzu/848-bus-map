@@ -18,6 +18,17 @@
             height: 100%;
             width: 100%;
         }
+
+        #options {
+            position: absolute;
+            padding: 0 2px 0 2px;
+            top: 60px;
+            left: 30px;
+            z-index: 10;
+            background-color: white;
+            opacity: 0.8;
+        }
+
     </style>
 
     <script>
@@ -42,17 +53,25 @@
 
         function getData(map) {
 
-            // for (var i = 0; i < markersArray.length; i++) {
-            //     markersArray[i].setMap(null);
-            // }
-            // markersArray.length = 0;
+            var showAll = $('#show-all').prop('checked');
+            if (!showAll) {
+                for (var i = 0; i < markersArray.length; i++) {
+                    if (!markersArray[i].mainline) {
+                        markersArray[i].setMap(null);
+                    }
+                }
+                markersArray = markersArray.filter(function (value, index, arr) {
+                    return value.mainline;
+                });
+            }
 
             $.getJSON("https://www.koivistonauto.fi/wp-json/ka/v1/busses", function (data) {
 
                 $.each(data, function (key, val) {
 
+                    var mainLine = true;
                     var line = val.transportation == null ? null : val.transportation.line;
-                    if (line == '6102' || line == '6101' || false) {
+                    if (line == '6102' || line == '6101' || showAll) {
 
                         var busTitle;
                         switch (val.transportation?.line) {
@@ -64,6 +83,7 @@
                                 break;
                             default:
                                 busTitle = val.name;
+                                mainLine = false;
                                 break;
                         }
 
@@ -97,16 +117,21 @@
                             '<b>' + busTitle + '</b><br>' +
                             'Lähtöaika: ' + convertTimestamp(val.transportation?.departure_time) + '<br>' +
                             // 'Dist: ' + distance + '<br>' +
-                            'Speed: ' + Math.round(speed) + ' km/h<br>' +
-                            '<br>' +
-                            'id: ' + val.id + '<br>' +
-                            'timestamp: ' + val.location.timestamp + '<br>' +
-                            'name: ' + val.name + '<br>' +
-                            'mapcode: ' + val.mapCode + '<br>' +
-                            transportationInfo +
-                            'reststate.stopped: ' + val.restState.stopped + '<br>' +
-                            'reststate.time: ' + val.restState.time + '<br>' +
-                            'reststate.duration: ' + val.restState.duration;
+                            'Speed: ' + Math.round(speed) + ' km/h<br>';
+
+                        if ($('#debug').prop('checked')) {
+                            infoContent += 
+                                '<br/>' +
+                                'id: ' + val.id + '<br>' +
+                                'timestamp: ' + val.location.timestamp + '<br>' +
+                                'name: ' + val.name + '<br>' +
+                                'mapcode: ' + val.mapCode + '<br>' +
+                                transportationInfo +
+                                'reststate.stopped: ' + val.restState.stopped + '<br>' +
+                                'reststate.time: ' + val.restState.time + '<br>' +
+                                'reststate.duration: ' + val.restState.duration;
+
+                        } 
 
                         var info = new google.maps.InfoWindow({
                             content: infoContent,
@@ -137,6 +162,7 @@
                                 id: val.id,
                                 info: info,
                                 speed: speed,
+                                mainline: mainLine,
                                 timeStamp: val.location.timestamp
                             });
 
@@ -178,7 +204,13 @@
 
 <body>
     <!--The div element for the map -->
-    <div id="map"></div>
+    <div id="map">
+    </div>
+
+    <div id="options">
+        All <input type="checkbox" id="show-all" />
+        Debug <input type="checkbox" id="debug" />
+    </div>
 
     <!-- 
      The `defer` attribute causes the callback to execute after the full HTML
