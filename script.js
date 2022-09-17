@@ -1,6 +1,9 @@
 var markersArray = new Array();
 var locationArray = new Array();
 var openedInfo;
+var trafficLayer;
+var showTraffic = false;
+var map;
 
 const loader = new google.maps.plugins.loader.Loader({
     apiKey: config.mapsApiKey, // read from external config.js file
@@ -20,7 +23,8 @@ const mapOptions = {
 loader
     .load()
     .then((gmap) => {
-        const map = new google.maps.Map(document.getElementById("map"), mapOptions);
+        map = new google.maps.Map(document.getElementById("map"), mapOptions);
+        trafficLayer = new google.maps.TrafficLayer();
         getData(map);
         setInterval(function () {
             getData(map);
@@ -190,3 +194,19 @@ function convertTimestamp(timeStamp) {
     var minutes = String(date.getMinutes()).padStart(2, '0');
     return hours + ':' + minutes;
 }
+
+document.addEventListener("DOMContentLoaded", function () {
+    const trafficDiv = document.getElementById('trafficlayer');
+    trafficDiv.onclick = () => {
+        if(showTraffic) {
+            trafficLayer.setMap(null);
+            showTraffic = false;
+            trafficDiv.style.fontWeight = 'normal';
+        } else {
+            trafficLayer.setMap(map);
+            showTraffic = true;
+            trafficDiv.style.fontWeight = 'bold';
+        }
+    }
+});
+
