@@ -101,7 +101,7 @@ function getData(map) {
                 // build info popup content
                 var infoContent =
                     '<b>' + busTitle + '</b><br>' +
-                    'Lähtöaika: ' + convertTimestamp(val.transportation?.departure_time) + '<br>' +
+                    'Departure: ' + convertTimestamp(val.transportation?.departure_time) + '<br>' +
                     'Speed: ' + (isNaN(speed) ? 'Calculating...' : Math.round(speed) + ' km/h') + '<br>';
 
                 // if debug checked, show everything we get from API in info popup
