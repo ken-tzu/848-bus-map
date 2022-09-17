@@ -30,8 +30,8 @@ body,
 #options {
     position: absolute;
     padding: 0 2px 0 2px;
-    top: 60px;
-    left: 15px;
+    top: 10px;
+    left: 267px;
     z-index: 10;
     background-color: white;
     opacity: 0.8;
