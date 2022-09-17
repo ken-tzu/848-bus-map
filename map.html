@@ -5,12 +5,16 @@
     <title>848 map</title>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
     <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+    <script src="https://unpkg.com/@googlemaps/js-api-loader@1.0.0/dist/index.min.js"></script>
+
+    <!-- contains Maps API key-->
+    <script src="./config.js"></script>
 
     <meta charset="UTF-8">
 
     <style>
         body {
-               padding: 0;
+            padding: 0;
             margin: 0;
         }
 
@@ -38,18 +42,33 @@
         var locationArray = new Array();
         var openedInfo;
 
-        // Initialize and add the map
-        function initMap() {
-            const map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 10,
-                center: { lat: 60.3377996461302, lng: 25.4599816182501 },
-            });
+        const loader = new google.maps.plugins.loader.Loader({
+            apiKey: config.mapsApiKey, // read from external config.js file
+            version: "weekly",
+            libraries: ["geometry"]
+        });
 
-            getData(map);
-            setInterval(function () {
+        const mapOptions = {
+            center: {
+                lat: 60.3377996461302,
+                lng: 25.4599816182501
+            },
+            zoom: 10
+        };
+
+        // Promise
+        loader
+            .load()
+            .then((gmap) => {
+                const map = new google.maps.Map(document.getElementById("map"), mapOptions);
                 getData(map);
-            }, 10000);
-        }
+                setInterval(function () {
+                    getData(map);
+                }, 10000);
+            })
+            .catch(e => {
+                console.log(e);
+            });
 
         function getData(map) {
 
@@ -125,7 +144,7 @@
                         // 'Dist: ' + distance + '<br>' +
                         'Speed: ' + Math.round(speed) + ' km/h<br>';
 
-                        // if debug checked, show everything we get from API in info popup
+                    // if debug checked, show everything we get from API in info popup
                     if ($('#debug').prop('checked')) {
                         var transportationInfo = val.transportation == null ? 'transportation: null <br>' :
                             'transportation.shift: ' + val.transportation.shift + '<br>' +
@@ -149,8 +168,8 @@
                         content: infoContent,
                     });
 
-                    if (existingMarker != null) { 
-                        
+                    if (existingMarker != null) {
+
                         // update existing marker
                         existingMarker.setTitle(busTitle);
                         existingMarker.setPosition({ lat: val.location.lat, lng: val.location.lng });
@@ -164,8 +183,8 @@
                         existingMarker.info.setContent(infoContent);
 
                     }
-                    else { 
-                        
+                    else {
+
                         // create new marker
                         var marker = new google.maps.Marker({
                             position: { lat: val.location.lat, lng: val.location.lng },
@@ -210,7 +229,7 @@
             return hours + ':' + minutes;
         }
 
-        window.initMap = initMap;
+        // window.initMap = initMap;
 
     </script>
 </head>
@@ -226,15 +245,6 @@
         Debug <input type="checkbox" id="debug" />
     </div>
 
-    <!-- 
-     The `defer` attribute causes the callback to execute after the full HTML
-     document has been parsed. For non-blocking uses, avoiding race conditions,
-     and consistent behavior across browsers, consider loading using Promises
-     with https://www.npmjs.com/package/@googlemaps/js-api-loader.
-    -->
-    <script
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAkB0SHfpfb_FIKi_dOOG8YitsGdqq2e5w&libraries=geometry&callback=initMap&v=weekly"
-        defer></script>
 </body>
 
 </html>
