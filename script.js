@@ -73,12 +73,12 @@ function getData(map) {
                         mainLine = false;
                         break;
                 }
-    
+
                 // find possible existing marker for bus
                 var existingMarker = markersArray.find(obj => {
                     return obj.id === val.id
                 });
-    
+
                 // compute speed for bus
                 // => distance between now and previous location divided by time
                 var distance, speed;
@@ -97,20 +97,20 @@ function getData(map) {
                 } else {
                     speed = existingMarker.speed;
                 }
-    
+
                 // build info popup content
                 var infoContent =
                     '<b>' + busTitle + '</b><br>' +
                     'Lähtöaika: ' + convertTimestamp(val.transportation?.departure_time) + '<br>' +
                     'Speed: ' + (isNaN(speed) ? 'Calculating...' : Math.round(speed) + ' km/h') + '<br>';
-    
+
                 // if debug checked, show everything we get from API in info popup
                 if (document.getElementById('debug').checked) {
                     var transportationInfo = val.transportation == null ? 'transportation: null <br>' :
                         'transportation.shift: ' + val.transportation.shift + '<br>' +
                         'transportation.line: ' + val.transportation.line + '<br>' +
                         'transportation.departure_time: ' + val.transportation.departure_time + '<br>';
-    
+
                     infoContent +=
                         '<br/>' +
                         'id: ' + val.id + '<br>' +
@@ -122,13 +122,13 @@ function getData(map) {
                         'reststate.time: ' + val.restState.time + '<br>' +
                         'reststate.duration: ' + val.restState.duration;
                 }
-    
+
                 var info = new google.maps.InfoWindow({
                     content: infoContent,
                 });
-    
+
                 if (existingMarker != null) {
-    
+
                     // update existing marker
                     existingMarker.setTitle(busTitle);
                     existingMarker.setPosition({ lat: val.location.lat, lng: val.location.lng });
@@ -140,10 +140,10 @@ function getData(map) {
                         rotation: val.location.heading
                     }));
                     existingMarker.info.setContent(infoContent);
-    
+
                 }
                 else {
-    
+
                     // create new marker
                     var marker = new google.maps.Marker({
                         position: { lat: val.location.lat, lng: val.location.lng },
@@ -156,14 +156,14 @@ function getData(map) {
                         mainline: mainLine,
                         timeStamp: val.location.timestamp
                     });
-    
+
                     // use arrow icon rotated by heading of bus
                     marker.setIcon(({
                         path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
                         scale: 5,
                         rotation: val.location.heading
                     }));
-    
+
                     marker.addListener("click", () => {
                         if (openedInfo != null) openedInfo.close();
                         info.open({
@@ -173,20 +173,14 @@ function getData(map) {
                         });
                         openedInfo = info;
                     });
-    
+
                     markersArray.push(marker);
                 }
             });
-
-
-
-
-
         })
         .catch(error => {
             console.log('Fetch error', error);
         });
-
 }
 
 function convertTimestamp(timeStamp) {
