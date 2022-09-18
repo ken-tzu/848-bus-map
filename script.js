@@ -1,5 +1,4 @@
 var markersArray = new Array();
-var locationArray = new Array();
 var openedInfo;
 var trafficLayer;
 var showTraffic = false;
@@ -22,7 +21,7 @@ const mapOptions = {
 // Promise
 loader
     .load()
-    .then((gmap) => {
+    .then(() => {
         map = new google.maps.Map(document.getElementById("map"), mapOptions);
         trafficLayer = new google.maps.TrafficLayer();
         getData(map);
@@ -34,7 +33,7 @@ loader
         console.log(e);
     });
 
-function getData(map) {
+function getData(map) {                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 
     var showAll = document.getElementById('show-all').checked;
     if (!showAll) {
@@ -44,7 +43,7 @@ function getData(map) {
                 markersArray[i].setMap(null);
             }
         }
-        markersArray = markersArray.filter(function (value, index, arr) {
+        markersArray = markersArray.filter(function (value) {
             return value.mainline;
         });
     }
