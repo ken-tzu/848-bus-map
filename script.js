@@ -57,7 +57,7 @@ function getData(map) {
                 var mainLine = true; // is this one of the bus lines we want to see on map?
 
                 var busTitle;
-                switch (val.transportation?.line) {
+                switch (val.transportation?.line.toString()) {
                     case '6101':
                         busTitle = '848 Porvoo - Hki';
                         break;
