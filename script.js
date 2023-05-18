@@ -48,43 +48,36 @@ function getData(map) {
         });
     }
 
+    const busTitleLookup = {
+        '6101': '848 Porvoo - Hki',
+        '6102': '848 Hki - Porvoo',
+        '6241': 'Hki - Loviisa',
+        '6242': 'Loviisa - Hki'
+      };
+
     fetch("https://www.koivistonauto.fi/wp-json/ka/v1/busses")
         .then(res => res.json())
-        .then(async res => {
-
-            res.forEach(function (val) {
-
-                var mainLine = true; // is this one of the bus lines we want to see on map?
-
-                var busTitle;
-                switch (val.transportation?.line) {
-                    case '6101':
-                        busTitle = '848 Porvoo - Hki';
-                        break;
-                    case '6102':
-                        busTitle = '848 Hki - Porvoo';
-                        break;
-                    case '6241':
-                        busTitle = 'Hki - Loviisa';
-                        break;
-                    case '6242':
-                        busTitle = 'Loviisa - Hki';
-                        break;
-                    default:
-                        if (!showAll) { return true; } // skip others if showAll not checked
-                        busTitle = val.name;
-                        mainLine = false;
-                        break;
+        .then(res => {
+            res.forEach(val => {
+                let mainLine = true; // is this one of the bus lines we want to see on map?
+                const { transportation, name } = val;
+                let line = transportation?.line?.toString().trim(); 
+    
+                let busTitle = busTitleLookup[line];
+                if (busTitle === undefined) {
+                    if (!showAll) return true; // skip others if showAll not checked
+                    busTitle = name;
+                    mainLine = false;
                 }
 
                 // find possible existing marker for bus
-                var existingMarker = markersArray.find(obj => {
+                let existingMarker = markersArray.find(obj => {
                     return obj.id === val.id
                 });
 
                 // compute speed for bus
                 // => distance between now and previous location divided by time
-                var distance, speed;
+                let distance, speed;
                 if (val.location != null) {
                     if (existingMarker != null) {
                         distance = google.maps.geometry.spherical.computeDistanceBetween(
@@ -102,7 +95,7 @@ function getData(map) {
                 }
 
                 // build info popup content
-                var infoContent =
+                let infoContent =
                     '<b>' + busTitle + '</b><br>' +
                     'Departure: ' + convertTimestamp(val.transportation?.departure_time) + '<br>' +
                     'Speed: ' + (isNaN(speed) ? 'Calculating...' : Math.round(speed) + ' km/h') + '<br>';
@@ -126,7 +119,7 @@ function getData(map) {
                         'reststate.duration: ' + val.restState.duration;
                 }
 
-                var info = new google.maps.InfoWindow({
+                let info = new google.maps.InfoWindow({
                     content: infoContent,
                 });
 
