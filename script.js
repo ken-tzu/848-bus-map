@@ -52,7 +52,9 @@ function getData(map) {
         '6101': '848 Porvoo - Hki',
         '6102': '848 Hki - Porvoo',
         '6241': 'Hki - Loviisa',
-        '6242': 'Loviisa - Hki'
+        '6242': 'Loviisa - Hki',
+        '6243': 'Hki - Kotka',
+        '6244': 'Kotka - Hki'
       };
 
     fetch("https://www.koivistonauto.fi/wp-json/ka/v1/busses")
@@ -77,7 +79,7 @@ function getData(map) {
 
                 // compute speed for bus
                 // => distance between now and previous location divided by time
-                let distance, speed;
+                let distance, speed; 
                 if (val.location != null) {
                     if (existingMarker != null) {
                         distance = google.maps.geometry.spherical.computeDistanceBetween(
@@ -95,10 +97,11 @@ function getData(map) {
                 }
 
                 // build info popup content
-                let infoContent =
-                    '<b>' + busTitle + '</b><br>' +
-                    'Departure: ' + convertTimestamp(val.transportation?.departure_time) + '<br>' +
-                    'Speed: ' + (isNaN(speed) ? 'Calculating...' : Math.round(speed) + ' km/h') + '<br>';
+                let infoContent = `
+                    <b>${busTitle}</b><br>
+                    Departure: ${convertTimestamp(val.transportation.departure_time)}<br>
+                    Speed: ${isNaN(speed) ? 'Calculating...' : `${Math.round(speed)} km/h`}<br>
+                `;
 
                 // if debug checked, show everything we get from API in info popup
                 if (document.getElementById('debug').checked) {
