@@ -4,34 +4,46 @@ var trafficLayer;
 var showTraffic = false;
 var map;
 
-const loader = new google.maps.plugins.loader.Loader({
-    apiKey: config.mapsApiKey, // read from external config.js file
-    version: "weekly",
-    libraries: ["geometry"]
-});
+(g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
+    key: "AIzaSyAImnNjxpejsKlQewkCwtBUhyAb560iDSM",
+    v: "weekly",
+  });
 
-const mapOptions = {
-    center: {
-        lat: 60.3377996461302,
-        lng: 25.4599816182501
-    },
-    zoom: 10
-};
+async function initMap() {
+    const { Map } = await google.maps.importLibrary("maps");
+    const { AdvancedMarkerElement, PinElement } = google.maps.importLibrary("marker");
+    const { Geometry } = google.maps.importLibrary("geometry");
 
-// Promise
-loader
-    .load()
-    .then(() => {
-        map = new google.maps.Map(document.getElementById("map"), mapOptions);
-        trafficLayer = new google.maps.TrafficLayer();
+    const mapOptions = {
+        center: {
+            lat: 60.3377996461302,
+            lng: 25.4599816182501
+        },
+        zoom: 10,
+        mapId: "BUS_MAP"
+    };
+    
+    map = new google.maps.Map(document.getElementById("map"), mapOptions);
+    trafficLayer = new google.maps.TrafficLayer();
+    getData(map);
+    setInterval(function () {
         getData(map);
-        setInterval(function () {
-            getData(map);
-        }, 10000);
-    })
-    .catch(e => {
-        console.log(e);
-    });
+    }, 10000);
+}
+
+initMap();
+
+// custom SVG marker
+const parser = new DOMParser();
+const pinSvgString =
+'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24" shape-rendering="geometricPrecision" text-rendering="geometricPrecision"><polygon stroke-width="3" points="3.293,11.293 4.707,12.707 11,6.414 11,20 13,20 13,6.414 19.293,12.707 20.707,11.293 12,2.586 3.293,11.293" stroke="#000"/></svg>';
+
+function createIcon() {
+    return parser.parseFromString(
+        pinSvgString,
+        "image/svg+xml",
+    ).documentElement;
+}
 
 function getData(map) {                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 
@@ -83,7 +95,7 @@ function getData(map) {
                 if (val.location != null) {
                     if (existingMarker != null) {
                         distance = google.maps.geometry.spherical.computeDistanceBetween(
-                            existingMarker.getPosition(),
+                            existingMarker.position,
                             new google.maps.LatLng(val.location.lat, val.location.lng));
                     }
                     if (distance > 0) {
@@ -92,14 +104,14 @@ function getData(map) {
                     } else {
                         speed = existingMarker?.speed;
                     }
-                } else {
+                } else {    
                     speed = existingMarker.speed;
                 }
 
                 // build info popup content
                 let infoContent = `
                     <b>${busTitle}</b><br>
-                    Departure: ${convertTimestamp(val.transportation.departure_time)}<br>
+                    Departure: ${convertTimestamp(val.transportation?.departure_time)}<br>
                     Speed: ${isNaN(speed) ? 'Calculating...' : `${Math.round(speed)} km/h`}<br>
                 `;
 
@@ -127,41 +139,35 @@ function getData(map) {
                 });
 
                 if (existingMarker != null) {
+                    console.log('Updating existing marker', val.id, val.location.lat, val.location.lng, val.location.heading, val.restState.stopped, val.location.timestamp, speed);
 
-                    // update existing marker
-                    existingMarker.setTitle(busTitle);
-                    existingMarker.setPosition({ lat: val.location.lat, lng: val.location.lng });
+                    existingMarker.title = busTitle;
+                    existingMarker.position = { lat: val.location.lat, lng: val.location.lng };
                     existingMarker.timeStamp = val.location.timestamp;
-                    existingMarker.setOpacity(val.restState.stopped ? 0.35 : 1.0);
-                    existingMarker.setIcon(({
-                        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                        scale: 5,
-                        rotation: val.location.heading
-                    }));
+                    existingMarker.content = createIcon();
+                    existingMarker.content.style.opacity = val.restState.stopped ? "0.35" : "1.0";
+                    existingMarker.content.style.transform = `rotate(${val.location.heading}deg)`;
                     existingMarker.info.setContent(infoContent);
-
                 }
                 else {
+                    console.log('Creating new marker', val.id, val.location.lat, val.location.lng, val.location.heading, val.restState.stopped, val.location.timestamp, speed);
 
                     // create new marker
-                    var marker = new google.maps.Marker({
+                    var marker = new google.maps.marker.AdvancedMarkerElement({
                         position: { lat: val.location.lat, lng: val.location.lng },
                         title: busTitle,
-                        opacity: val.restState.stopped ? 0.35 : 1.0,
                         map: map,
-                        id: val.id,
-                        info: info,
-                        speed: speed,
-                        mainline: mainLine,
-                        timeStamp: val.location.timestamp
+                        content: createIcon()
                     });
 
-                    // use arrow icon rotated by heading of bus
-                    marker.setIcon(({
-                        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                        scale: 5,
-                        rotation: val.location.heading
-                    }));
+                    marker.id = val.id
+                    marker.content.style.opacity = val.restState.stopped ? "0.35" : "1.0";
+                    // rotate the marker icon by heading of bus
+                    marker.content.style.transform = `rotate(${val.location.heading}deg)`;
+                    marker.info = info;
+                    marker.speed = speed;
+                    marker.mainline = mainLine;
+                    marker.timeStamp = val.location.timestamp;
 
                     marker.addListener("click", () => {
                         if (openedInfo != null) openedInfo.close();
@@ -204,4 +210,3 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 });
-
