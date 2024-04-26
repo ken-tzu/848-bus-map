@@ -43,6 +43,15 @@ function createIcon() {
     return pinSvgElement.cloneNode(true);
 }
 
+const busTitleLookup = {
+    '6101': '848 Porvoo - Hki',
+    '6102': '848 Hki - Porvoo',
+    '6241': 'Hki - Loviisa',
+    '6242': 'Loviisa - Hki',
+    '6243': 'Hki - Kotka',
+    '6244': 'Kotka - Hki'
+  };
+
 function getData(map) {                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 
     var showAll = document.getElementById('show-all').checked;
@@ -58,15 +67,6 @@ function getData(map) {
         });
     }
 
-    const busTitleLookup = {
-        '6101': '848 Porvoo - Hki',
-        '6102': '848 Hki - Porvoo',
-        '6241': 'Hki - Loviisa',
-        '6242': 'Loviisa - Hki',
-        '6243': 'Hki - Kotka',
-        '6244': 'Kotka - Hki'
-      };
-
     fetch("https://www.koivistonauto.fi/wp-json/ka/v1/busses")
         .then(res => res.json())
         .then(res => {
@@ -77,7 +77,7 @@ function getData(map) {
     
                 let busTitle = busTitleLookup[line];
                 if (busTitle === undefined) {
-                    if (!showAll) return true; // skip others if showAll not checked
+                    if (!showAll) return true; // skip non-mainline buses if showAll not checked
                     busTitle = name;
                     mainLine = false;
                 }
@@ -87,99 +87,116 @@ function getData(map) {
                     return obj.id === val.id
                 });
 
-                // compute speed for bus
-                // => distance between now and previous location divided by time
-                let distance, speed; 
-                if (val.location != null) {
-                    if (existingMarker != null) {
-                        distance = google.maps.geometry.spherical.computeDistanceBetween(
-                            existingMarker.position,
-                            new google.maps.LatLng(val.location.lat, val.location.lng));
-                    }
-                    if (distance > 0) {
-                        speed = distance / (val.location.timestamp - existingMarker.timeStamp) * 3.6;
-                        existingMarker.speed = speed;
-                    } else {
-                        speed = existingMarker?.speed;
-                    }
-                } else {    
-                    speed = existingMarker.speed;
-                }
+                let speed = computeSpeed(val, existingMarker);
 
-                // build info popup content
-                let infoContent = `
-                    <b>${busTitle}</b><br>
-                    Departure: ${convertTimestamp(val.transportation?.departure_time)}<br>
-                    Speed: ${isNaN(speed) ? 'Calculating...' : `${Math.round(speed)} km/h`}<br>
-                `;
-
-                // if debug checked, show everything we get from API in info popup
-                if (document.getElementById('debug').checked) {
-                    var transportationInfo = val.transportation == null ? 'transportation: null <br>' :
-                        'transportation.shift: ' + val.transportation.shift + '<br>' +
-                        'transportation.line: ' + val.transportation.line + '<br>' +
-                        'transportation.departure_time: ' + val.transportation.departure_time + '<br>';
-
-                    infoContent +=
-                        '<br/>' +
-                        'id: ' + val.id + '<br>' +
-                        'timestamp: ' + val.location.timestamp + '<br>' +
-                        'name: ' + val.name + '<br>' +
-                        'mapcode: ' + val.mapCode + '<br>' +
-                        transportationInfo +
-                        'reststate.stopped: ' + val.restState.stopped + '<br>' +
-                        'reststate.time: ' + val.restState.time + '<br>' +
-                        'reststate.duration: ' + val.restState.duration;
-                }
+                let infoContent = buildInfoContent(val, busTitle, speed);
 
                 let info = new google.maps.InfoWindow({
                     content: infoContent,
                 });
 
                 if (existingMarker != null) {
-                    existingMarker.title = busTitle;
-                    existingMarker.position = { lat: val.location.lat, lng: val.location.lng };
-                    existingMarker.timeStamp = val.location.timestamp;
-                    // existingMarker.content = createIcon();
-                    existingMarker.content.style.opacity = val.restState.stopped ? "0.35" : "1.0";
-                    existingMarker.content.style.transform = `rotate(${val.location.heading}deg)`;
-                    existingMarker.info.setContent(infoContent);
+                   updateMarker(existingMarker, val, busTitle, info, speed, mainLine, infoContent);
                 }
                 else {
-                    // create new marker
-                    var marker = new google.maps.marker.AdvancedMarkerElement({
-                        position: { lat: val.location.lat, lng: val.location.lng },
-                        title: busTitle,
-                        map: map,
-                        content: createIcon()
-                    });
-
-                    marker.id = val.id
-                    marker.content.style.opacity = val.restState.stopped ? "0.35" : "1.0";
-                    // rotate the marker icon by heading of bus
-                    marker.content.style.transform = `rotate(${val.location.heading}deg)`;
-                    marker.info = info;
-                    marker.speed = speed;
-                    marker.mainline = mainLine;
-                    marker.timeStamp = val.location.timestamp;
-
-                    marker.addListener("click", () => {
-                        if (openedInfo != null) openedInfo.close();
-                        info.open({
-                            anchor: marker,
-                            map,
-                            shouldFocus: false,
-                        });
-                        openedInfo = info;
-                    });
-
-                    markersArray.push(marker);
+                    createMarker(val, busTitle, info, speed, mainLine);
                 }
             });
         })
         .catch(error => {
             console.error('Fetch error', error);
         });
+}
+
+// create new marker
+function createMarker(val, busTitle, info, speed, mainLine) {
+    var marker = new google.maps.marker.AdvancedMarkerElement({
+        position: { lat: val.location.lat, lng: val.location.lng },
+        title: busTitle,
+        map: map,
+        content: createIcon()
+    });
+
+    marker.id = val.id
+    marker.content.style.opacity = val.restState.stopped ? "0.35" : "1.0";
+    // rotate the marker icon by heading of bus
+    marker.content.style.transform = `rotate(${val.location.heading}deg)`;
+    marker.info = info;
+    marker.speed = speed;
+    marker.mainline = mainLine;
+    marker.timeStamp = val.location.timestamp;
+
+    marker.addListener("click", () => {
+        if (openedInfo != null) openedInfo.close();
+        info.open({
+            anchor: marker,
+            map,
+            shouldFocus: false,
+        });
+        openedInfo = info;
+    });
+
+    markersArray.push(marker);
+}
+
+// update existing marker
+function updateMarker(existingMarker, val, busTitle, info, speed, mainLine, infoContent) {
+    existingMarker.title = busTitle;
+    existingMarker.position = { lat: val.location.lat, lng: val.location.lng };
+    existingMarker.timeStamp = val.location.timestamp;
+    existingMarker.content.style.opacity = val.restState.stopped ? "0.35" : "1.0";
+    existingMarker.content.style.transform = `rotate(${val.location.heading}deg)`;
+    existingMarker.info.setContent(infoContent);
+}
+
+// compute speed for bus
+// => distance between now and previous location divided by time
+function computeSpeed(val, existingMarker) {
+    let distance, speed;
+    if (val.location != null) {
+        if (existingMarker != null) {
+            distance = google.maps.geometry.spherical.computeDistanceBetween(
+                existingMarker.position,
+                new google.maps.LatLng(val.location.lat, val.location.lng));
+        }
+        if (distance > 0) {
+            speed = distance / (val.location.timestamp - existingMarker.timeStamp) * 3.6;
+            existingMarker.speed = speed;
+        } else {
+            speed = existingMarker?.speed;
+        }
+    } else {
+        speed = existingMarker.speed;
+    }
+    return speed;
+}
+
+// build the content for the map pin popup shown when pin is clicked
+function buildInfoContent(val, busTitle, speed) {
+    let infoContent = `
+    <b>${busTitle}</b><br>
+    Departure: ${convertTimestamp(val.transportation?.departure_time)}<br>
+    Speed: ${isNaN(speed) ? 'Calculating...' : `${Math.round(speed)} km/h`}<br>
+`;
+    // if debug checked, show everything we get from API in info popup
+    if (document.getElementById('debug').checked) {
+        var transportationInfo = val.transportation == null ? 'transportation: null <br>' :
+            'transportation.shift: ' + val.transportation.shift + '<br>' +
+            'transportation.line: ' + val.transportation.line + '<br>' +
+            'transportation.departure_time: ' + val.transportation.departure_time + '<br>';
+
+        infoContent +=
+            '<br/>' +
+            'id: ' + val.id + '<br>' +
+            'timestamp: ' + val.location.timestamp + '<br>' +
+            'name: ' + val.name + '<br>' +
+            'mapcode: ' + val.mapCode + '<br>' +
+            transportationInfo +
+            'reststate.stopped: ' + val.restState.stopped + '<br>' +
+            'reststate.time: ' + val.restState.time + '<br>' +
+            'reststate.duration: ' + val.restState.duration;
+    }
+    return infoContent;
 }
 
 function convertTimestamp(timeStamp) {
