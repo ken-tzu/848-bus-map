@@ -137,8 +137,6 @@ function getData(map) {
                 });
 
                 if (existingMarker != null) {
-                    console.log('Updating existing marker', val.id, val.location.lat, val.location.lng, val.location.heading, val.restState.stopped, val.location.timestamp, speed);
-
                     existingMarker.title = busTitle;
                     existingMarker.position = { lat: val.location.lat, lng: val.location.lng };
                     existingMarker.timeStamp = val.location.timestamp;
@@ -148,8 +146,6 @@ function getData(map) {
                     existingMarker.info.setContent(infoContent);
                 }
                 else {
-                    console.log('Creating new marker', val.id, val.location.lat, val.location.lng, val.location.heading, val.restState.stopped, val.location.timestamp, speed);
-
                     // create new marker
                     var marker = new google.maps.marker.AdvancedMarkerElement({
                         position: { lat: val.location.lat, lng: val.location.lng },
@@ -182,7 +178,7 @@ function getData(map) {
             });
         })
         .catch(error => {
-            console.log('Fetch error', error);
+            console.error('Fetch error', error);
         });
 }
 
