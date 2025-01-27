@@ -35,10 +35,12 @@ initMap();
 
 // custom SVG marker
 const parser = new DOMParser();
-const pinSvgString =
-'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24" shape-rendering="geometricPrecision" text-rendering="geometricPrecision"><polygon stroke-width="3" points="3.293,11.293 4.707,12.707 11,6.414 11,20 13,20 13,6.414 19.293,12.707 20.707,11.293 12,2.586 3.293,11.293" stroke="#000"/></svg>';
 
-function createIcon() {
+function createIcon(color) {
+    const pinSvgString =
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24" shape-rendering="geometricPrecision" text-rendering="geometricPrecision"><polygon fill="${color}" stroke="${color}" stroke-width="2" points="3.293,11.293 4.707,12.707 11,6.414 11,20 13,20 13,6.414 19.293,12.707 20.707,11.293 12,2.586 3.293,11.293"/></svg>`;
+    // '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24" shape-rendering="geometricPrecision" text-rendering="geometricPrecision"><polygon stroke-width="4" points="3.293,11.293 4.707,12.707 11,6.414 11,20 13,20 13,6.414 19.293,12.707 20.707,11.293 12,2.586 3.293,11.293" fill="${color}"/></svg>';
+
     return parser.parseFromString(
         pinSvgString,
         "image/svg+xml",
@@ -66,8 +68,14 @@ function getData(map) {
         '6241': 'Hki - Loviisa',
         '6242': 'Loviisa - Hki',
         '6243': 'Hki - Kotka',
-        '6244': 'Kotka - Hki'
+        '6244': 'Kotka - Hki',
+		'7801': 'OB78 Hki Töölö - Porvoo',
+		'7802': 'OB78 Porvoo - Hki Töölö',
+		'7901': 'OB79 Hki - Porvoo',
+		'7902': 'OB79 Porvoo - Hki'
       };
+	// line 7105 = OB71 (from Hki)
+	// line 7106 = OB71 (from Porvoo)
 
     fetch("https://www.koivistonauto.fi/wp-json/ka/v1/busses")
         .then(res => res.json())
@@ -147,6 +155,9 @@ function getData(map) {
                     existingMarker.content = createIcon();
                     existingMarker.content.style.opacity = val.restState.stopped ? "0.35" : "1.0";
                     existingMarker.content.style.transform = `rotate(${val.location.heading}deg)`;
+                    existingMarker.content.style.fill = getMarkerColor(line);
+                    existingMarker.content.style.stroke = getMarkerColor(line);
+                    existingMarker.content.style.strokeWidth = 2;
                     existingMarker.info.setContent(infoContent);
                 }
                 else {
@@ -157,7 +168,7 @@ function getData(map) {
                         position: { lat: val.location.lat, lng: val.location.lng },
                         title: busTitle,
                         map: map,
-                        content: createIcon()
+                        content: createIcon(getMarkerColor(line)),
                     });
 
                     marker.id = val.id
@@ -186,6 +197,19 @@ function getData(map) {
         .catch(error => {
             console.log('Fetch error', error);
         });
+}
+
+function getMarkerColor(line) {
+	switch(line) {
+		case '7801':
+		case '7802':
+			return '#000077';
+		case '7901':
+		case '7902':
+			return '#007700';
+		default:
+			return '#000000';
+	}
 }
 
 function convertTimestamp(timeStamp) {
