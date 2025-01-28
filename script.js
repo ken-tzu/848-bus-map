@@ -38,13 +38,16 @@ const parser = new DOMParser();
 
 function createIcon(color) {
     const pinSvgString =
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24" shape-rendering="geometricPrecision" text-rendering="geometricPrecision"><polygon fill="${color}" stroke="${color}" stroke-width="2" points="3.293,11.293 4.707,12.707 11,6.414 11,20 13,20 13,6.414 19.293,12.707 20.707,11.293 12,2.586 3.293,11.293"/></svg>`;
-    // '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24" shape-rendering="geometricPrecision" text-rendering="geometricPrecision"><polygon stroke-width="4" points="3.293,11.293 4.707,12.707 11,6.414 11,20 13,20 13,6.414 19.293,12.707 20.707,11.293 12,2.586 3.293,11.293" fill="${color}"/></svg>';
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" class="marker-icon"><polygon fill="${color}" stroke="${color}" stroke-width="2" points="3.293,11.293 4.707,12.707 11,6.414 11,20 13,20 13,6.414 19.293,12.707 20.707,11.293 12,2.586 3.293,11.293"/></svg>`;
+    
+    const svgElement = parser.parseFromString(pinSvgString, "image/svg+xml").documentElement;
+    svgElement.classList.add('marker-icon');
 
-    return parser.parseFromString(
-        pinSvgString,
-        "image/svg+xml",
-    ).documentElement;
+    const container = document.createElement('div');
+    container.classList.add('marker-container');
+    container.appendChild(svgElement);
+
+    return container;
 }
 
 function getData(map) {                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
@@ -152,15 +155,11 @@ function getData(map) {
                     existingMarker.title = busTitle;
                     existingMarker.position = { lat: val.location.lat, lng: val.location.lng };
                     existingMarker.timeStamp = val.location.timestamp;
-                    existingMarker.content = createIcon();
+                    existingMarker.content = createIcon(getMarkerColor(line));
                     existingMarker.content.style.opacity = val.restState.stopped ? "0.35" : "1.0";
-                    existingMarker.content.style.transform = `rotate(${val.location.heading}deg)`;
-                    existingMarker.content.style.fill = getMarkerColor(line);
-                    existingMarker.content.style.stroke = getMarkerColor(line);
-                    existingMarker.content.style.strokeWidth = 2;
+                    existingMarker.content.querySelector('.marker-icon').style.transform = `rotate(${val.location.heading}deg)`;
                     existingMarker.info.setContent(infoContent);
-                }
-                else {
+                } else {
                     console.log('Creating new marker', val.id, val.location.lat, val.location.lng, val.location.heading, val.restState.stopped, val.location.timestamp, speed);
 
                     // create new marker
@@ -171,10 +170,10 @@ function getData(map) {
                         content: createIcon(getMarkerColor(line)),
                     });
 
-                    marker.id = val.id
+                    marker.id = val.id;
                     marker.content.style.opacity = val.restState.stopped ? "0.35" : "1.0";
                     // rotate the marker icon by heading of bus
-                    marker.content.style.transform = `rotate(${val.location.heading}deg)`;
+                    marker.content.querySelector('.marker-icon').style.transform = `rotate(${val.location.heading}deg)`;
                     marker.info = info;
                     marker.speed = speed;
                     marker.mainline = mainLine;
@@ -184,10 +183,8 @@ function getData(map) {
                         if (openedInfo != null) openedInfo.close();
                         info.open({
                             anchor: marker,
-                            map,
-                            shouldFocus: false,
+                            map: map,
                         });
-                        openedInfo = info;
                     });
 
                     markersArray.push(marker);

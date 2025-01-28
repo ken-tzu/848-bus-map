@@ -37,3 +37,16 @@ body,
     opacity: 0.8;
     font-family: Roboto, Arial, sans-serif;
 }
+
+.marker-container {
+    position: relative;
+    width: 24px;
+    height: 24px;
+}
+
+.marker-icon {
+    position: absolute;
+    top: -2px; /* Adjust this value to anchor the tip of the arrow */
+    left: 0;
+    transform-origin: center bottom; /* Ensure rotation happens around the tip */
+}
