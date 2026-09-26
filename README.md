@@ -21,9 +21,10 @@ safer case). Instead:
    `https://booking-api.onnibus.com/triptracking/1.0.0/api/trips/bus-coordinates/online`
    server-side with the bearer token, and returns the JSON as-is.
 
-This also keeps the token out of the page source, unlike the Google Maps
-key in `config.js` (which is meant to be public and restricted by HTTP
-referrer instead).
+The OnniBus token stays on the server. The Google Maps key is different:
+Maps runs in the browser, so the page fetches it from `/api/config`.
+That keeps the key out of the repo, but anyone who can open the site can
+still see it. Restrict the key by HTTP referrer in Google Cloud.
 
 ### About the bearer token
 
@@ -62,9 +63,10 @@ the same token value.
 
 ## Usage
 
-- Replace the Google Maps API key in `config.js` with your own key.
-- Set `ONNIBUS_TOKEN` in Vercel (production) and in a local `.env` for
-  `vercel dev` (copy `.env.example` as a starting point).
+- Set `GOOGLE_MAPS_API_KEY` and `ONNIBUS_TOKEN` in Vercel (production)
+  and in a local `.env` for `vercel dev` (copy `.env.example` as a
+  starting point). The Maps key is served to the browser by
+  `/api/config`. Restrict it to this site and to localhost.
 - Edit `ROUTE_INFO` in `script.js` to add/remove which routes are shown
   by default vs. only under "show all".
 
@@ -76,7 +78,8 @@ needs an HTTP origin.
 
 1. Install the [Vercel CLI](https://vercel.com/docs/cli) if you don't
    already have it (`npm i -g vercel`), or use `npx`.
-2. Copy `.env.example` to `.env` and set `ONNIBUS_TOKEN`.
+2. Copy `.env.example` to `.env` and set `ONNIBUS_TOKEN` and
+   `GOOGLE_MAPS_API_KEY`.
 3. From the project root, run:
 
    ```bash
