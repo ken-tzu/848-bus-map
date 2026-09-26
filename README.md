@@ -27,23 +27,24 @@ referrer instead).
 
 ### About the bearer token
 
-The token currently lives as a fallback constant in `api/buses.js`, but
-should be set as the `ONNIBUS_TOKEN` environment variable in your Vercel
-project settings instead. It was captured from OnniBus's own public map
-page and was identical across two different requests - possibly a
-static value baked into their frontend rather than a real per-session
-secret, but that's not confirmed. If bus data stops showing up, this
-token having expired or been rotated is the first thing to check
-(open OnniBus's map page, re-capture the token from DevTools, per
-the negotiate/listen network calls).
+The token must be set as the `ONNIBUS_TOKEN` environment variable (Vercel
+project settings in production, or a local `.env` file for `vercel
+dev`). It is never hardcoded in the repo.
+
+It was captured from OnniBus's own public map page. The same value has
+worked across sessions and for months, so it is likely a static client
+key baked into their frontend rather than a per-user secret - but that
+isn't guaranteed. If bus data stops showing up, token rejection (HTTP
+401) is the first thing to check.
 
 This calls an undocumented endpoint, which could change or be
-restricted without warning.
+restricted without warning. Official OnniBus/Matkahuolto feeds were
+checked and do not expose the live coach positions this map needs.
 
 ### Recovering an expired/invalid token
 
-If `/api/buses` starts returning 401s, capture a fresh token from
-OnniBus's own map page:
+If `/api/buses` starts returning 401s (the map shows an error banner),
+capture a fresh token from OnniBus's own map page:
 
 1. Open https://www.onnibus.com/bussit-kartalla, open DevTools -> Network,
    filter to Fetch/XHR, tick "Preserve log", and reload.
@@ -51,8 +52,8 @@ OnniBus's own map page:
    `.../triptracking/1.0.0/api/trips/bus-coordinates/online/listen/negotiate?negotiateVersion=1`.
    It carries the token in its `authorization: Bearer <token>` request
    header (not the response).
-3. Copy that token into the `ONNIBUS_TOKEN` env var on Vercel (or the
-   fallback constant in `api/buses.js` for local testing).
+3. Copy that token into `ONNIBUS_TOKEN` on Vercel, and into your local
+   `.env` if you develop with `vercel dev`.
 
 The `/api/trips/bus-coordinates/online` GET endpoint this project
 actually calls needs the same bearer token in its own `authorization`
@@ -62,8 +63,8 @@ the same token value.
 ## Usage
 
 - Replace the Google Maps API key in `config.js` with your own key.
-- Set the `ONNIBUS_TOKEN` environment variable in Vercel (or edit the
-  fallback in `api/buses.js` for local testing with `vercel dev`).
+- Set `ONNIBUS_TOKEN` in Vercel (production) and in a local `.env` for
+  `vercel dev` (copy `.env.example` as a starting point).
 - Edit `ROUTE_INFO` in `script.js` to add/remove which routes are shown
   by default vs. only under "show all".
 
@@ -75,17 +76,19 @@ needs an HTTP origin.
 
 1. Install the [Vercel CLI](https://vercel.com/docs/cli) if you don't
    already have it (`npm i -g vercel`), or use `npx`.
-2. From the project root, run:
+2. Copy `.env.example` to `.env` and set `ONNIBUS_TOKEN`.
+3. From the project root, run:
 
    ```bash
    vercel dev
    ```
 
-3. Open the URL it prints (typically `http://localhost:3000`). The root
+4. Open the URL it prints (typically `http://localhost:3000`). The root
    route is rewritten to `map.html` via `vercel.json`.
 
-Make sure your Google Maps API key allows the localhost referrer, and
-that `ONNIBUS_TOKEN` (or the fallback in `api/buses.js`) is set.
+Make sure your Google Maps API key allows the localhost referrer. If
+the token is missing or rejected, a banner at the bottom of the map
+explains why.
 
 ## Known approximations
 

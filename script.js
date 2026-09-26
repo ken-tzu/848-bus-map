@@ -79,8 +79,21 @@ function getData(map) {
     }
 
     fetch("/api/buses")
-        .then(res => res.json())
+        .then(async res => {
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const message =
+                    body.message ||
+                    `Bus feed failed (HTTP ${res.status}).`;
+                throw Object.assign(new Error(message), {
+                    code: body.error,
+                    status: res.status,
+                });
+            }
+            return body;
+        })
         .then(buses => {
+            setFeedStatus(null);
             const now = Date.now();
 
             buses.forEach(val => {
@@ -205,8 +218,21 @@ function getData(map) {
             });
         })
         .catch(error => {
-            console.log('Fetch error', error);
+            console.error('Bus feed error', error);
+            setFeedStatus(error.message || String(error));
         });
+}
+
+function setFeedStatus(message) {
+    const el = document.getElementById('status');
+    if (!el) return;
+    if (message) {
+        el.textContent = message;
+        el.hidden = false;
+    } else {
+        el.textContent = '';
+        el.hidden = true;
+    }
 }
 
 function formatDeparture(isoString) {

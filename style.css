@@ -37,3 +37,22 @@ body,
     opacity: 0.8;
     font-family: Roboto, Arial, sans-serif;
 }
+
+#status {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 24px;
+    z-index: 10;
+    padding: 10px 14px;
+    background-color: #fff3cd;
+    border: 1px solid #856404;
+    color: #856404;
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+#status[hidden] {
+    display: none;
+}

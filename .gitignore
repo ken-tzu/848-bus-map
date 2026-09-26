@@ -1,5 +1,5 @@
 dev_readme.txt
 .vercel
-
-.vercel
-.env*
+.env
+.env.local
+.env*.local
