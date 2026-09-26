@@ -67,6 +67,26 @@ the same token value.
 - Edit `ROUTE_INFO` in `script.js` to add/remove which routes are shown
   by default vs. only under "show all".
 
+## How to run locally
+
+Opening `map.html` directly in a browser (`file://`) will not work: the
+page fetches `/api/buses`, which is a Vercel serverless function and
+needs an HTTP origin.
+
+1. Install the [Vercel CLI](https://vercel.com/docs/cli) if you don't
+   already have it (`npm i -g vercel`), or use `npx`.
+2. From the project root, run:
+
+   ```bash
+   vercel dev
+   ```
+
+3. Open the URL it prints (typically `http://localhost:3000`). The root
+   route is rewritten to `map.html` via `vercel.json`.
+
+Make sure your Google Maps API key allows the localhost referrer, and
+that `ONNIBUS_TOKEN` (or the fallback in `api/buses.js`) is set.
+
 ## Known approximations
 
 The old Koiviston Auto API gave heading, per-position timestamps, and an
