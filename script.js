@@ -5,14 +5,14 @@ var showTraffic = false;
 var map;
 
 (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
-    key: "AIzaSyAImnNjxpejsKlQewkCwtBUhyAb560iDSM",
+    key: config.mapsApiKey,
     v: "weekly",
   });
 
 async function initMap() {
     const { Map } = await google.maps.importLibrary("maps");
-    const { AdvancedMarkerElement, PinElement } = google.maps.importLibrary("marker");
-    const { Geometry } = google.maps.importLibrary("geometry");
+    const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
+    await google.maps.importLibrary("geometry");
 
     const mapOptions = {
         center: {
@@ -22,24 +22,23 @@ async function initMap() {
         zoom: 10,
         mapId: "BUS_MAP"
     };
-    
+
     map = new google.maps.Map(document.getElementById("map"), mapOptions);
     trafficLayer = new google.maps.TrafficLayer();
     getData(map);
     setInterval(function () {
         getData(map);
-    }, 10000);
+    }, 15000);
 }
 
 initMap();
 
-// custom SVG marker
+// custom SVG marker (an arrow, rotated to the bus's heading)
 const parser = new DOMParser();
 
 function createIcon(color) {
     const pinSvgString =
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24" shape-rendering="geometricPrecision" text-rendering="geometricPrecision"><polygon fill="${color}" stroke="${color}" stroke-width="2" points="3.293,11.293 4.707,12.707 11,6.414 11,20 13,20 13,6.414 19.293,12.707 20.707,11.293 12,2.586 3.293,11.293"/></svg>`;
-    // '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24" shape-rendering="geometricPrecision" text-rendering="geometricPrecision"><polygon stroke-width="4" points="3.293,11.293 4.707,12.707 11,6.414 11,20 13,20 13,6.414 19.293,12.707 20.707,11.293 12,2.586 3.293,11.293" fill="${color}"/></svg>';
 
     return parser.parseFromString(
         pinSvgString,
@@ -47,7 +46,21 @@ function createIcon(color) {
     ).documentElement;
 }
 
-function getData(map) {                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+// Routes we care about by default. Anything not listed here is hidden
+// unless "show all" is checked, and drawn in black.
+// Add more OB-lines here as needed - the new API already gives us
+// human-readable route numbers, so there's no numeric-line lookup table
+// to maintain anymore.
+const ROUTE_INFO = {
+    'OB78': { color: '#000077', mainline: true },
+    'OB79': { color: '#007700', mainline: true },
+};
+
+function getRouteInfo(routeNumber) {
+    return ROUTE_INFO[routeNumber] || { color: '#000000', mainline: false };
+}
+
+function getData(map) {
 
     var showAll = document.getElementById('show-all').checked;
     if (!showAll) {
@@ -62,123 +75,102 @@ function getData(map) {
         });
     }
 
-    const busTitleLookup = {
-        '6101': '848 Porvoo - Hki',
-        '6102': '848 Hki - Porvoo',
-        '6241': 'Hki - Loviisa',
-        '6242': 'Loviisa - Hki',
-        '6243': 'Hki - Kotka',
-        '6244': 'Kotka - Hki',
-		'7801': 'OB78 Hki Töölö - Porvoo',
-		'7802': 'OB78 Porvoo - Hki Töölö',
-		'7901': 'OB79 Hki - Porvoo',
-		'7902': 'OB79 Porvoo - Hki'
-      };
-	// line 7105 = OB71 (from Hki)
-	// line 7106 = OB71 (from Porvoo)
-
-    fetch("https://www.koivistonauto.fi/wp-json/ka/v1/busses")
+    fetch("/api/buses")
         .then(res => res.json())
-        .then(res => {
-            res.forEach(val => {
-                let mainLine = true; // is this one of the bus lines we want to see on map?
-                const { transportation, name } = val;
-                let line = transportation?.line?.toString().trim(); 
-    
-                let busTitle = busTitleLookup[line];
-                if (busTitle === undefined) {
-                    if (!showAll) return true; // skip others if showAll not checked
-                    busTitle = name;
-                    mainLine = false;
-                }
+        .then(buses => {
+            const now = Date.now();
 
-                // find possible existing marker for bus
+            buses.forEach(val => {
+                const routeNumber = val.routeNumber;
+                const routeInfo = getRouteInfo(routeNumber);
+
+                if (!routeInfo.mainline && !showAll) return; // skip others if showAll not checked
+
+                // find possible existing marker for this bus/trip
                 let existingMarker = markersArray.find(obj => {
-                    return obj.id === val.id
+                    return obj.id === val.tripTrackId;
                 });
 
-                // compute speed for bus
-                // => distance between now and previous location divided by time
-                let distance, speed; 
-                if (val.location != null) {
-                    if (existingMarker != null) {
-                        distance = google.maps.geometry.spherical.computeDistanceBetween(
-                            existingMarker.position,
-                            new google.maps.LatLng(val.location.lat, val.location.lng));
-                    }
-                    if (distance > 0) {
-                        speed = distance / (val.location.timestamp - existingMarker.timeStamp) * 3.6;
-                        existingMarker.speed = speed;
-                    } else {
-                        speed = existingMarker?.speed;
-                    }
-                } else {    
-                    speed = existingMarker.speed;
-                }
+                const newPosition = new google.maps.LatLng(val.latitude, val.longitude);
 
-                // build info popup content
-                let infoContent = `
-                    <b>${busTitle}</b><br>
-                    Departure: ${convertTimestamp(val.transportation?.departure_time)}<br>
-                    Speed: ${isNaN(speed) ? 'Calculating...' : `${Math.round(speed)} km/h`}<br>
-                `;
-
-                // if debug checked, show everything we get from API in info popup
-                if (document.getElementById('debug').checked) {
-                    var transportationInfo = val.transportation == null ? 'transportation: null <br>' :
-                        'transportation.shift: ' + val.transportation.shift + '<br>' +
-                        'transportation.line: ' + val.transportation.line + '<br>' +
-                        'transportation.departure_time: ' + val.transportation.departure_time + '<br>';
-
-                    infoContent +=
-                        '<br/>' +
-                        'id: ' + val.id + '<br>' +
-                        'timestamp: ' + val.location.timestamp + '<br>' +
-                        'name: ' + val.name + '<br>' +
-                        'mapcode: ' + val.mapCode + '<br>' +
-                        transportationInfo +
-                        'reststate.stopped: ' + val.restState.stopped + '<br>' +
-                        'reststate.time: ' + val.restState.time + '<br>' +
-                        'reststate.duration: ' + val.restState.duration;
-                }
-
-                let info = new google.maps.InfoWindow({
-                    content: infoContent,
-                });
+                // compute speed and heading from movement since the last poll.
+                // The API doesn't give us either directly, so we derive them
+                // ourselves from consecutive positions - this is an
+                // approximation and will be noisy right after a bus first
+                // appears (no previous position yet) or if it's barely moved.
+                let speed = existingMarker?.speed;
+                let heading = existingMarker?.heading ?? 0;
 
                 if (existingMarker != null) {
-                    console.log('Updating existing marker', val.id, val.location.lat, val.location.lng, val.location.heading, val.restState.stopped, val.location.timestamp, speed);
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                        existingMarker.position, newPosition);
+                    const elapsedSeconds = (now - existingMarker.timeStamp) / 1000;
 
-                    existingMarker.title = busTitle;
-                    existingMarker.position = { lat: val.location.lat, lng: val.location.lng };
-                    existingMarker.timeStamp = val.location.timestamp;
-                    existingMarker.content = createIcon();
-                    existingMarker.content.style.opacity = val.restState.stopped ? "0.35" : "1.0";
-                    existingMarker.content.style.transform = `rotate(${val.location.heading}deg)`;
-                    existingMarker.content.style.fill = getMarkerColor(line);
-                    existingMarker.content.style.stroke = getMarkerColor(line);
-                    existingMarker.content.style.strokeWidth = 2;
-                    existingMarker.info.setContent(infoContent);
+                    if (distance > 5 && elapsedSeconds > 0) {
+                        speed = (distance / elapsedSeconds) * 3.6; // m/s -> km/h
+                        heading = google.maps.geometry.spherical.computeHeading(
+                            existingMarker.position, newPosition);
+                    }
+                    // if it barely moved, keep the previous speed/heading
+                    // rather than jumping to ~0 from GPS noise
+                }
+
+                // approximate "stopped" - the old API told us this directly,
+                // the new one doesn't, so we infer it from speed instead.
+                const stopped = speed != null && speed < 2;
+
+                const infoContent = `
+                    <b>${routeNumber} - ${val.routeName}</b><br>
+                    First stop departure: ${formatDeparture(val.firstStopDepartureDate)}<br>
+                    Speed: ${speed == null || isNaN(speed) ? 'Calculating...' : `${Math.round(speed)} km/h`}<br>
+                `;
+
+                let debugContent = '';
+                if (document.getElementById('debug').checked) {
+                    debugContent =
+                        '<br/>' +
+                        'tripTrackId: ' + val.tripTrackId + '<br>' +
+                        'routeNumber: ' + val.routeNumber + '<br>' +
+                        'routeName: ' + val.routeName + '<br>' +
+                        'firstStopDepartureDate: ' + val.firstStopDepartureDate + '<br>' +
+                        'lat/lng: ' + val.latitude + ', ' + val.longitude + '<br>' +
+                        'heading (derived): ' + Math.round(heading) + '<br>' +
+                        'stopped (derived): ' + stopped;
+                }
+
+                const fullContent = infoContent + debugContent;
+
+                if (existingMarker != null) {
+                    existingMarker.title = `${routeNumber} - ${val.routeName}`;
+                    existingMarker.position = newPosition;
+                    existingMarker.timeStamp = now;
+                    existingMarker.speed = speed;
+                    existingMarker.heading = heading;
+                    existingMarker.content = createIcon(routeInfo.color);
+                    existingMarker.content.style.opacity = stopped ? "0.35" : "1.0";
+                    existingMarker.content.style.transform = `rotate(${heading}deg)`;
+                    existingMarker.info.setContent(fullContent);
                 }
                 else {
-                    console.log('Creating new marker', val.id, val.location.lat, val.location.lng, val.location.heading, val.restState.stopped, val.location.timestamp, speed);
-
-                    // create new marker
-                    var marker = new google.maps.marker.AdvancedMarkerElement({
-                        position: { lat: val.location.lat, lng: val.location.lng },
-                        title: busTitle,
-                        map: map,
-                        content: createIcon(getMarkerColor(line)),
+                    const info = new google.maps.InfoWindow({
+                        content: fullContent,
                     });
 
-                    marker.id = val.id
-                    marker.content.style.opacity = val.restState.stopped ? "0.35" : "1.0";
-                    // rotate the marker icon by heading of bus
-                    marker.content.style.transform = `rotate(${val.location.heading}deg)`;
+                    const marker = new google.maps.marker.AdvancedMarkerElement({
+                        position: newPosition,
+                        title: `${routeNumber} - ${val.routeName}`,
+                        map: map,
+                        content: createIcon(routeInfo.color),
+                    });
+
+                    marker.id = val.tripTrackId;
+                    marker.content.style.opacity = stopped ? "0.35" : "1.0";
+                    marker.content.style.transform = `rotate(${heading}deg)`;
                     marker.info = info;
                     marker.speed = speed;
-                    marker.mainline = mainLine;
-                    marker.timeStamp = val.location.timestamp;
+                    marker.heading = heading;
+                    marker.mainline = routeInfo.mainline;
+                    marker.timeStamp = now;
 
                     marker.addListener("click", () => {
                         if (openedInfo != null) openedInfo.close();
@@ -193,30 +185,28 @@ function getData(map) {
                     markersArray.push(marker);
                 }
             });
+
+            // drop markers for buses that are no longer in the feed
+            // (finished their trip, went out of service, etc.)
+            const seenIds = new Set(buses.map(b => b.tripTrackId));
+            markersArray = markersArray.filter(marker => {
+                if (!seenIds.has(marker.id)) {
+                    marker.setMap(null);
+                    return false;
+                }
+                return true;
+            });
         })
         .catch(error => {
             console.log('Fetch error', error);
         });
 }
 
-function getMarkerColor(line) {
-	switch(line) {
-		case '7801':
-		case '7802':
-			return '#000077';
-		case '7901':
-		case '7902':
-			return '#007700';
-		default:
-			return '#000000';
-	}
-}
-
-function convertTimestamp(timeStamp) {
-    if (timeStamp == null) return 'null';
-    var date = new Date(timeStamp * 1000);
-    var hours = date.getHours();
-    var minutes = String(date.getMinutes()).padStart(2, '0');
+function formatDeparture(isoString) {
+    if (isoString == null) return 'unknown';
+    const date = new Date(isoString);
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
     return hours + ':' + minutes;
 }
 
