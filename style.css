@@ -56,3 +56,34 @@ body,
 #status[hidden] {
     display: none;
 }
+
+.bus-marker {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    overflow: visible;
+}
+
+.bus-marker-icon {
+    display: block;
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.bus-marker-label {
+    position: absolute;
+    left: 50%;
+    top: 28px;
+    transform: translateX(-50%);
+    white-space: pre;
+    text-align: center;
+    background: #fff;
+    color: #222;
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.25;
+    padding: 2px 5px;
+    border-radius: 3px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+}

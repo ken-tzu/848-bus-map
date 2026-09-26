@@ -58,10 +58,15 @@ module.exports = async (req, res) => {
 
     const data = await upstream.json();
 
+    // fetchedAt is when this proxy actually received the snapshot. The
+    // edge cache replays the same value, so the browser can tell a
+    // repeated cached body apart from a bus that has not moved.
+    const fetchedAt = new Date().toISOString();
+
     // Let Vercel's edge cache absorb repeat page loads for a few seconds
     // instead of hitting the upstream API on every single visitor.
     res.setHeader("Cache-Control", "s-maxage=10, stale-while-revalidate=20");
-    res.status(200).json(data);
+    res.status(200).json({ fetchedAt, buses: data });
   } catch (err) {
     res.status(502).json({
       error: "upstream_unreachable",
